@@ -11,32 +11,57 @@ st.markdown("""
     <style>
     .stApp { background-color: #f9fafb; }
     
-    /* 1. 우측 메인 영역 상단 잘림 현상 방지 및 여백 최소화 */
+    /* 1. 메인 영역 여백 최소화 */
     .block-container { 
-        padding-top: 0.5rem !important; 
-        padding-bottom: 0.5rem !important; 
+        padding-top: 0.3rem !important; 
+        padding-bottom: 0.3rem !important; 
         max-width: 100% !important;
     }
     
-    /* 2. 좌측 메뉴(사이드바) 여백 대폭 줄여 위로 바짝 붙이기 */
+    /* 2. 좌측 사이드바 메뉴 콤팩트 다이어트 (위로 바짝 붙이기) */
     section[data-testid="stSidebar"] {
         width: 20% !important;
-        min-width: 190px !important;
+        min-width: 210px !important;
     }
-    section[data-testid="stSidebar"] .stWidgetForm {
-        padding: 2px !important;
-    }
-    /* 사이드바 내부 아이템 간격(Gap) 최소화 */
+    /* 사이드바 여백 및 내부 위젯 간격 최대로 압축 */
     div[data-testid="stSidebarUserContent"] {
-        padding-top: 1rem !important;
-        gap: 0.2rem !important;
+        padding-top: 0.5rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+        gap: 0.1rem !important;
     }
-    /* 입력창 및 위젯들의 세로 높이와 여백 축소 */
+    /* 입력창 및 레이블 여백 최소화 */
     div[data-testid="stNumberInput"], div[data-testid="stTextInput"] {
-        margin-bottom: 4px !important;
+        margin-bottom: 2px !important;
     }
     div[data-testid="stNumberInput"] > label, div[data-testid="stTextInput"] > label {
-        margin-bottom: 2px !important;
+        margin-bottom: 1px !important;
+        font-size: 11px !important;
+    }
+    /* 입력 폼 두께 얇게 조절 */
+    .stTextInput input, .stNumberInput input {
+        padding: 4px 8px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+    }
+    /* 사이드바 제목 크기 축소 */
+    section[data-testid="stSidebar"] h3 {
+        font-size: 14px !important;
+        margin-top: 5px !important;
+        margin-bottom: 5px !important;
+    }
+    /* 버튼 높이 줄이기 */
+    .stButton button {
+        padding: 2px 10px !important;
+        height: 28px !important;
+        font-size: 12px !important;
+    }
+    /* 체크박스 여백 제로화 */
+    div[data-testid="stCheckbox"] {
+        margin: 0px !important;
+        padding: 0px !important;
+    }
+    div[data-testid="stCheckbox"] label {
         font-size: 12px !important;
     }
     
@@ -93,12 +118,6 @@ st.markdown("""
     }
     .blink-up-card { animation: heartbeatUp 1.0s infinite ease-in-out !important; }
     .blink-down-card { animation: heartbeatDown 1.0s infinite ease-in-out !important; }
-    
-    /* 스트림릿 체크박스 자체의 불필요한 마진 제거 */
-    div[data-testid="stCheckbox"] {
-        margin: 0px !important;
-        padding: 0px !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -125,18 +144,22 @@ def save_stocks(data):
 if "my_stocks" not in st.session_state:
     st.session_state.my_stocks = load_stocks()
 
-# ----------------- 좌측: 상단 밀착형 콤팩트 사이드바 -----------------
+# ----------------- 좌측: 초소형으로 위로 압축한 사이드바 -----------------
 st.sidebar.markdown("### ⭐ 관심 종목")
 
-new_name = st.sidebar.text_input("종목명", placeholder="예: 삼성전자", key="in_name")
-new_code = st.sidebar.text_input("종목코드", placeholder="예: 005930", key="in_code")
-if st.sidebar.button("추가", use_container_width=True):
+# 종목명과 코드를 한 줄에 촘촘하게 넣기 위해 가로 분할
+c1, c2 = st.sidebar.columns(2)
+new_name = c1.text_input("종목명", placeholder="삼성전자", key="in_name")
+new_code = c2.text_input("코드", placeholder="005930", key="in_code")
+
+if st.sidebar.button("종목 추가", use_container_width=True):
     if new_name and len(new_code) == 6 and new_code.isdigit():
         st.session_state.my_stocks[new_name] = {"code": new_code, "checked": True, "alert_active": True}
         save_stocks(st.session_state.my_stocks)
         st.rerun()
 
-st.sidebar.markdown("---")
+st.sidebar.markdown("<div style='margin: 2px 0; border-bottom: 1px solid #e5e8eb;'></div>", unsafe_allow_html=True)
+
 alert_limit = st.sidebar.number_input("알림 기준 (%)", min_value=0.0, max_value=100.0, value=float(st.session_state.my_stocks.get("_alert_limit", 3.0)), step=0.1)
 st.session_state.my_stocks["_alert_limit"] = alert_limit
 
@@ -146,7 +169,7 @@ for name in list(st.session_state.my_stocks.keys()):
     col1, col2 = st.sidebar.columns([4, 1])
     is_checked = col1.checkbox(name, value=st.session_state.my_stocks[name]["checked"], key=f"chk_{st.session_state.my_stocks[name]['code']}")
     st.session_state.my_stocks[name]["checked"] = is_checked
-    if col2.button("×", key=f"del_{st.session_state.my_stocks[name]['code']}"):
+    if col2.button("×", key=f"del_{st.session_state.my_stocks[name]['code']}", use_container_width=True):
         del st.session_state.my_stocks[name]
         save_stocks(st.session_state.my_stocks)
         st.rerun()
@@ -172,7 +195,6 @@ def get_stock_data(code):
             }
     except: return None
 
-# 누적 현상을 완전히 막기 위해 빈 화면 공간(Placeholder) 하나만 사용합니다.
 placeholder = st.empty()
 
 while True:
@@ -209,8 +231,7 @@ while True:
 
             toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            # 🛠️ 예전 큰 카드 렌더링 코드를 완전히 삭제하고 오직 미니 가로 배열로만 고정 출력합니다.
-            card_col, chk_col = st.columns([15, 1])
+            card_col, chk_col = st.columns([18, 1])
             
             with card_col:
                 st.markdown(f"""
