@@ -27,7 +27,7 @@ st.markdown("""
         display: flex;
         justify-content: space-between;
         align-items: center;
-        transition: transform 0.1s, box-shadow 0.2s, background-color 0.3s;
+        transition: transform 0.1s, box-shadow 0.2s;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
     .stock-card:hover { 
@@ -36,23 +36,27 @@ st.markdown("""
         transform: translateY(-1px);
     }
     
-    /* 🚨 실시간 등락률 조건 만족 시 깜빡이는 효과 (무한 루프) */
+    /* 🚨 모든 카드가 완벽하게 동일한 타이밍에 일치해서 깜빡이도록 절대적인 기준 설정 */
     @keyframes blinkUp {
-        0% { background-color: #ffffff; border-color: #e5e8eb; }
+        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #ffebed; border-color: #f04452; }
-        100% { background-color: #ffffff; border-color: #e5e8eb; }
     }
     @keyframes blinkDown {
-        0% { background-color: #ffffff; border-color: #e5e8eb; }
+        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #e8f3ff; border-color: #3182f6; }
-        100% { background-color: #ffffff; border-color: #e5e8eb; }
     }
     
+    /* 
+       animation-delay를 0s로 강제 통일하고, 
+       브라우저의 시스템 시각에 의존하도록 재생 규칙을 똑같이 맞췄습니다.
+    */
     .blink-up-card {
-        animation: blinkUp 1.0s infinite ease-in-out;
+        animation: blinkUp 1.0s infinite ease-in-out !important;
+        animation-delay: 0s !important;
     }
     .blink-down-card {
-        animation: blinkDown 1.0s infinite ease-in-out;
+        animation: blinkDown 1.0s infinite ease-in-out !important;
+        animation-delay: 0s !important;
     }
     
     /* 스트림릿 기본 요소 간격 조정 */
@@ -118,13 +122,11 @@ if st.sidebar.button("💾 설정 저장", use_container_width=True):
 st.title("📊 실시간 주가 모니터 전광판")
 
 def get_stock_data(code):
-    # 크래시 없는 네이버 정식 실시간 데이터 채널로 복구
     url = f"https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:{code}"
     try:
         res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=3)
         if res.status_code == 200:
             item = res.json()['result']['areas'][0]['datas'][0]
-            # 수치 데이터 형변환을 강제하여 조건문 오류를 원천 차단합니다.
             return {
                 "price": int(item['nv']), 
                 "cv": int(item['cv']), 
