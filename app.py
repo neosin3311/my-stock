@@ -5,7 +5,7 @@ import os
 import time
 
 # 1. 웹페이지 디자인 및 레이아웃 설정
-st.set_page_config(page_title="실시간 주가 전광판", layout="wide")
+st.set_page_config(page_title="미니 전광판", layout="wide")
 
 st.markdown("""
     <style>
@@ -14,26 +14,47 @@ st.markdown("""
         text-decoration: none !important;
         color: inherit !important;
         display: block;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
+    
+    /* 콤팩트한 미니 카드 디자인 */
     .stock-card {
         background-color: white;
         border: 1px solid #e5e8eb;
-        border-radius: 12px;
-        padding: 16px 20px;
+        border-radius: 8px;
+        padding: 8px 12px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-        transition: transform 0.1s, box-shadow 0.2s;
-    }
-    .stock-card:hover { 
-        background-color: #f2f4f6;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        transform: translateY(-1px);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
     }
     
-    /* 🚨 [해결 핵심] 웹페이지 전체에 1초짜리 절대 심장박동(애니메이션)을 단 하나만 선언합니다. */
+    /* 종목명 영역 스타일 */
+    .stock-info {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .stock-name {
+        font-size: 14px;
+        font-weight: bold;
+        color: #333d4b;
+    }
+    .stock-code {
+        font-size: 11px;
+        color: #8b95a1;
+    }
+    
+    /* 가격 및 등락률 우측 배치 스타일 */
+    .stock-values {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    
+    /* 🚨 칼군무 동시 깜빡임 무한 루프 */
     @keyframes heartbeatUp {
         0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #ffebed; border-color: #f04452; }
@@ -43,11 +64,6 @@ st.markdown("""
         50% { background-color: #e8f3ff; border-color: #3182f6; }
     }
     
-    /* 
-       모든 카드가 똑같은 애니메이션 이름과 시간(1초)을 바라보게 합니다.
-       브라우저는 동일한 키프레임 애니메이션을 하나의 글로벌 타임라인으로 처리하므로,
-       카드들이 각자 로드되었어도 한 몸처럼 일치해서 번쩍이게 됩니다.
-    */
     .blink-up-card {
         animation: heartbeatUp 1.0s infinite ease-in-out !important;
     }
@@ -55,7 +71,16 @@ st.markdown("""
         animation: heartbeatDown 1.0s infinite ease-in-out !important;
     }
     
-    .block-container { padding-top: 2rem !important; }
+    /* 스트림릿 기본 여백 줄이기 */
+    .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+    
+    /* 체크박스 정렬 보정 */
+    div[data-testid="stCheckbox"] {
+        margin-bottom: 0px !important;
+        margin-top: 0px !important;
+        padding-bottom: 0px !important;
+        padding-top: 0px !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -114,7 +139,7 @@ if st.sidebar.button("💾 설정 저장", use_container_width=True):
     st.sidebar.success("설정 저장 완료!")
 
 # ----------------- 우측: 전광판 영역 -----------------
-st.title("📊 실시간 주가 모니터 전광판")
+st.markdown("### 📊 실시간 주가")
 
 def get_stock_data(code):
     url = f"https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:{code}"
@@ -151,38 +176,44 @@ while True:
             alert_class = ""
             
             if is_up:
-                status_txt = f"▲ {cv:,} (+{cr:.2f}%)"
+                status_txt = f"+{cr:.2f}%"
                 color = "#f04452"
                 if info["alert_active"] and cr >= alert_limit:
                     alert_class = "blink-up-card"
             elif is_down:
-                status_txt = f"▼ {abs(cv):,} (-{abs(cr):.2f}%)"
+                status_txt = f"-{abs(cr):.2f}%"
                 color = "#3182f6"
                 if info["alert_active"] and abs(cr) >= alert_limit:
                     alert_class = "blink-down-card"
             else:
-                status_txt = f"{cv:,} ({cr:.2f}%)"
+                status_txt = f"{cr:.2f}%"
                 color = "#4e5968"
 
             toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            st.markdown(f"""
-                <a href="{toss_url}" target="_blank" class="stock-link">
-                    <div class="stock-card {alert_class}">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px; font-weight: bold; color: #333d4b;">{name}</span>
-                            <span style="font-size: 12px; color: #8b95a1;">({info['code']})</span>
-                        </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 18px; font-weight: bold; color: {color};">{price:,} 원</span><br>
-                            <span style="font-size: 13px; font-weight: bold; color: {color};">{status_txt}</span>
-                        </div>
-                    </div>
-                </a>
-            """, unsafe_allow_html=True)
+            # 카드 내부에 정보와 체크박스를 가로로 한 줄에 깔끔하게 배치
+            card_col, chk_col = st.columns([12, 1])
             
-            info["alert_active"] = st.checkbox("알림 활성화", value=info["alert_active"], key=f"alert_{info['code']}")
-            st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+            with card_col:
+                st.markdown(f"""
+                    <a href="{toss_url}" target="_blank" class="stock-link">
+                        <div class="stock-card {alert_class}">
+                            <div class="stock-info">
+                                <span class="stock-name">{name}</span>
+                                <span class="stock-code">{info['code']}</span>
+                            </div>
+                            <div class="stock-values" style="color: {color};">
+                                <span>{price:,}원</span>
+                                <span>{status_txt}</span>
+                            </div>
+                        </div>
+                    </a>
+                """, unsafe_allow_html=True)
+                
+            with chk_col:
+                # 카드 바로 옆에 알림 체크박스를 바짝 붙여 배치
+                st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
+                info["alert_active"] = st.checkbox("", value=info["alert_active"], key=f"alert_{info['code']}", label_visibility="collapsed")
             
         time.sleep(4)
         st.rerun()
