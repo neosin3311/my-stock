@@ -7,7 +7,6 @@ import time
 # 1. 웹페이지 디자인 및 레이아웃 설정 (토스증권 테마 적용)
 st.set_page_config(page_title="실시간 주가 전광판", layout="wide")
 
-# CSS를 완벽하게 보정하여 알림 조건 만족 시 배경이 깜빡이도록 개선했습니다.
 st.markdown("""
     <style>
     /* 전체 배경 스타일 */
@@ -115,17 +114,20 @@ if st.sidebar.button("💾 설정 저장", use_container_width=True):
     save_stocks(st.session_state.my_stocks)
     st.sidebar.success("설정 저장 완료!")
 
-# ----------------- 우측: 전광판 영역 (백엔드 직통 호출) -----------------
+# ----------------- 우측: 전광판 영역 (네이버 금융 실시간 API 직통 연동) -----------------
 st.title("📊 실시간 주가 모니터 전광판")
 
 def get_stock_data(code):
+    # 가장 빠르고 오류 없는 네이버 실시간 주식 중계 경로 사용
     url = f"https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:{code}"
     try:
-        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=2)
+        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=3)
         if res.status_code == 200:
             item = res.json()['result']['areas'][0]['datas'][0]
+            # nv: 현재가, cv: 전일대비 변동액, cr: 변동률(%), rf: 등락구분코드 (1,2: 상승 / 4,5: 하락)
             return {"price": item['nv'], "cv": item['cv'], "cr": item['cr'], "rf": item['rf']}
-    except: return None
+    except Exception as e:
+        return None
 
 # 화면 전체 갱신을 위한 빈 캔버스 정의
 placeholder = st.empty()
@@ -139,27 +141,32 @@ while True:
             data = get_stock_data(info["code"])
             if not data: continue
             
-            is_up = data["rf"] in [1, 2]
-            is_down = data["rf"] in [4, 5]
+            price = data["price"]
+            cv = data["cv"]
+            cr = data["cr"]
+            rf = data["rf"]
+            
+            is_up = rf in [1, 2]
+            is_down = rf in [4, 5]
             
             # 상승/하락 글자 및 색상 배치
             if is_up:
-                status_txt = f"▲ {data['cv']:,} (+{data['cr']:.2f}%)"
+                status_txt = f"▲ {cv:,} (+{cr:.2f}%)"
                 color = "#f04452" # 토스 레드
-                # 알림 기준 충족 시 줄 자리에 깜빡이 클래스 주입
-                alert_class = "blink-up-card" if (info["alert_active"] and data["cr"] >= alert_limit) else ""
+                # 알림 기준 충족 시 깜빡이 클래스 주입
+                alert_class = "blink-up-card" if (info["alert_active"] and cr >= alert_limit) else ""
             elif is_down:
-                status_txt = f"▼ {data['cv']:,} (-{data['cr']:.2f}%)"
+                status_txt = f"▼ {cv:,} (-{cr:.2f}%)"
                 color = "#3182f6" # 토스 블루
-                alert_class = "blink-down-card" if (info["alert_active"] and data["cr"] >= alert_limit) else ""
+                alert_class = "blink-down-card" if (info["alert_active"] and cr >= alert_limit) else ""
             else:
-                status_txt = f"{data['cv']:,} ({data['cr']:.2f}%)"
+                status_txt = f"{cv:,} ({cr:.2f}%)"
                 color = "#4e5968"
                 alert_class = ""
 
             toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            # 🛠️ 스트림릿 내장 테두리와 부딪히지 않도록 순수 커스텀 HTML 카드로만 렌더링하여 색상 버그를 완벽 해결했습니다.
+            # 주가 카드 디자인을 화면에 출력
             st.markdown(f"""
                 <a href="{toss_url}" target="_blank" class="stock-link">
                     <div class="stock-card {alert_class}">
@@ -168,14 +175,14 @@ while True:
                             <span style="font-size: 12px; color: #8b95a1;">({info['code']})</span>
                         </div>
                         <div style="text-align: right;">
-                            <span style="font-size: 18px; font-weight: bold; color: {color};">{data['price']:,} 원</span><br>
+                            <span style="font-size: 18px; font-weight: bold; color: {color};">{price:,} 원</span><br>
                             <span style="font-size: 13px; font-weight: bold; color: {color};">{status_txt}</span>
                         </div>
                     </div>
                 </a>
             """, unsafe_allow_html=True)
             
-            # 카드 바로 아랫줄에 개별 알림 스위치 체크박스 노출
+            # 알림 스위치
             info["alert_active"] = st.checkbox("알림 활성화", value=info["alert_active"], key=f"alert_{info['code']}")
             st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
             
