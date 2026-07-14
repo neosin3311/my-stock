@@ -25,41 +25,11 @@ st.markdown("""
         justify-content: space-between;
         align-items: center;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-        transition: transform 0.1s, box-shadow 0.2s;
     }
-    .stock-card:hover { 
-        background-color: #f2f4f6;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        transform: translateY(-1px);
-    }
-    
-    /* 
-       🚨 [핵심 해결책] CSS의 전역 무한 재생 루프 기준을 
-       브라우저가 처음 로드된 단 하나의 특정 기준점으로 강제 일치시킵니다.
-       이 방식을 쓰면 카드가 언제 그려졌는지 상관없이 하나의 절대 시계를 바라봅니다.
-    */
-    @keyframes systemBlinkUp {
-        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
-        50% { background-color: #ffebed; border-color: #f04452; }
-    }
-    @keyframes systemBlinkDown {
-        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
-        50% { background-color: #e8f3ff; border-color: #3182f6; }
-    }
-    
-    /*
-      animation-delay: -10000s 처럼 거대한 음수값을 고정으로 주면
-      각 카드들이 로드되는 시점 차이(0.1초 수준)를 완전히 무시하고
-      이미 10000초 전부터 같이 돌고 있던 동일 시점의 애니메이션 주기 속으로 강제 합류됩니다.
-    */
-    .blink-up-card {
-        animation: systemBlinkUp 1.2s infinite ease-in-out !important;
-        animation-delay: -10000s !important;
-    }
-    .blink-down-card {
-        animation: systemBlinkDown 1.2s infinite ease-in-out !important;
-        animation-delay: -10000s !important;
-    }
+    /* 상태별 배경색 고정 스타일 */
+    .bg-up { background-color: #ffebed !important; border-color: #f04452 !important; }
+    .bg-down { background-color: #e8f3ff !important; border-color: #3182f6 !important; }
+    .bg-white { background-color: #ffffff !important; border-color: #e5e8eb !important; }
     
     .block-container { padding-top: 2rem !important; }
     </style>
@@ -85,8 +55,15 @@ def save_stocks(data):
     with open(SAVE_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+# 세션 상태 초기화
 if "my_stocks" not in st.session_state:
     st.session_state.my_stocks = load_stocks()
+if "blink_state" not in st.session_state:
+    st.session_state.blink_state = True
+if "last_api_check" not in st.session_state:
+    st.session_state.last_api_check = 0.0
+if "cached_data" not in st.session_state:
+    st.session_state.cached_data = {}
 
 # ----------------- 좌측: 설정 사이드바 -----------------
 st.sidebar.title("⭐ 관심 종목")
@@ -128,67 +105,75 @@ def get_stock_data(code):
         res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=3)
         if res.status_code == 200:
             item = res.json()['result']['areas'][0]['datas'][0]
-            return {
-                "price": int(item['nv']), 
-                "cv": int(item['cv']), 
-                "cr": float(item['cr']), 
-                "rf": int(item['rf'])
-            }
+            return {"price": int(item['nv']), "cv": int(item['cv']), "cr": float(item['cr']), "rf": int(item['rf'])}
     except: return None
+
+# API 데이터 수집은 4초마다 진행하여 부하를 줄임
+current_time = time.time()
+if current_time - st.session_state.last_api_check >= 4.0 or not st.session_state.cached_data:
+    for name, info in st.session_state.my_stocks.items():
+        if name.startswith("_") or not info["checked"]: continue
+        api_res = get_stock_data(info["code"])
+        if api_res:
+            st.session_state.cached_data[info["code"]] = api_res
+    st.session_state.last_api_check = current_time
+
+# 💡 핵심: 하나의 변수로 켜짐/꺼짐 신호를 제어하여 전 종목의 색상 타이밍을 하나로 묶음
+st.session_state.blink_state = not st.session_state.blink_state
 
 placeholder = st.empty()
 
-while True:
-    with placeholder.container():
-        for name, info in st.session_state.my_stocks.items():
-            if name.startswith("_") or not info["checked"]: continue
-            
-            data = get_stock_data(info["code"])
-            if not data: continue
-            
-            price = data["price"]
-            cv = data["cv"]
-            cr = data["cr"]
-            rf = data["rf"]
-            
-            is_up = rf in [1, 2]
-            is_down = rf in [4, 5]
-            
-            alert_class = ""
-            
-            if is_up:
-                status_txt = f"▲ {cv:,} (+{cr:.2f}%)"
-                color = "#f04452"
-                if info["alert_active"] and cr >= alert_limit:
-                    alert_class = "blink-up-card"
-            elif is_down:
-                status_txt = f"▼ {abs(cv):,} (-{abs(cr):.2f}%)"
-                color = "#3182f6"
-                if info["alert_active"] and abs(cr) >= alert_limit:
-                    alert_class = "blink-down-card"
-            else:
-                status_txt = f"{cv:,} ({cr:.2f}%)"
-                color = "#4e5968"
+with placeholder.container():
+    for name, info in st.session_state.my_stocks.items():
+        if name.startswith("_") or not info["checked"]: continue
+        
+        data = st.session_state.cached_data.get(info["code"])
+        if not data: continue
+        
+        price = data["price"]
+        cv = data["cv"]
+        cr = data["cr"]
+        rf = data["rf"]
+        
+        is_up = rf in [1, 2]
+        is_down = rf in [4, 5]
+        
+        card_class = "bg-white"
+        
+        if is_up:
+            status_txt = f"▲ {cv:,} (+{cr:.2f}%)"
+            color = "#f04452"
+            if info["alert_active"] and cr >= alert_limit:
+                card_class = "bg-up" if st.session_state.blink_state else "bg-white"
+        elif is_down:
+            status_txt = f"▼ {abs(cv):,} (-{abs(cr):.2f}%)"
+            color = "#3182f6"
+            if info["alert_active"] and abs(cr) >= alert_limit:
+                card_class = "bg-down" if st.session_state.blink_state else "bg-white"
+        else:
+            status_txt = f"{cv:,} ({cr:.2f}%)"
+            color = "#4e5968"
 
-            toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
+        toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            st.markdown(f"""
-                <a href="{toss_url}" target="_blank" class="stock-link">
-                    <div class="stock-card {alert_class}">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px; font-weight: bold; color: #333d4b;">{name}</span>
-                            <span style="font-size: 12px; color: #8b95a1;">({info['code']})</span>
-                        </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 18px; font-weight: bold; color: {color};">{price:,} 원</span><br>
-                            <span style="font-size: 13px; font-weight: bold; color: {color};">{status_txt}</span>
-                        </div>
+        st.markdown(f"""
+            <a href="{toss_url}" target="_blank" class="stock-link">
+                <div class="stock-card {card_class}">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px; font-weight: bold; color: #333d4b;">{name}</span>
+                        <span style="font-size: 12px; color: #8b95a1;">({info['code']})</span>
                     </div>
-                </a>
-            """, unsafe_allow_html=True)
-            
-            info["alert_active"] = st.checkbox("알림 활성화", value=info["alert_active"], key=f"alert_{info['code']}")
-            st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
-            
-        time.sleep(4)
-        st.rerun()
+                    <div style="text-align: right;">
+                        <span style="font-size: 18px; font-weight: bold; color: {color};">{price:,} 원</span><br>
+                        <span style="font-size: 13px; font-weight: bold; color: {color};">{status_txt}</span>
+                    </div>
+                </div>
+            </a>
+        """, unsafe_allow_html=True)
+        
+        info["alert_active"] = st.checkbox("알림 활성화", value=info["alert_active"], key=f"alert_{info['code']}")
+        st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+
+# 0.5초 주기로 강제 새로고침을 수행해 백엔드 변수 동기화 작동
+time.sleep(0.5)
+st.rerun()
