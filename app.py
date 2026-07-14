@@ -11,7 +11,7 @@ st.markdown("""
     <style>
     .stApp { background-color: #f9fafb; }
     
-    /* [상단 잘림 해결 및 본문 정렬] */
+    /* 상단 잘림 해결 및 모바일/미니 창 반응형 꽉 참 설정 */
     header[data-testid="stHeader"] {
         display: none !important;
     }
@@ -22,11 +22,82 @@ st.markdown("""
     .block-container { 
         padding-top: 0.5rem !important; 
         padding-bottom: 0.5rem !important; 
-        max-width: 360px !important; /* 🚨 가로 항목이 너무 넓게 늘어나지 않도록 절대폭 제한 */
-        margin: 0 auto !important;   /* 화면 정중앙 정렬 */
+        max-width: 100% !important; /* 창 크기에 따라 가로가 유연하게 변하도록 반응형 처리 */
+        padding-left: 10px !important;
+        padding-right: 10px !important;
     }
     
-    /* 좌측 사이드바 메뉴 콤팩트 다이어트 */
+    /* 🚨 [핵심 수정] 카드와 체크박스가 절대 밑으로 떨어지지 않도록 가로 배치 강제 고정 */
+    .stock-row-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        margin-bottom: 6px;
+    }
+    
+    .stock-link {
+        text-decoration: none !important;
+        color: inherit !important;
+        flex-grow: 1; /* 창이 늘어나고 줄어들 때 카드가 유연하게 크기 조절 */
+        min-width: 0; /* 글자가 잘리지 않고 카드가 부드럽게 쪼그라들도록 보정 */
+    }
+    
+    .stock-card {
+        background-color: white;
+        border: 1px solid #e5e8eb;
+        border-radius: 6px;
+        padding: 6px 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* 텍스트 겹침 방지 처리 */
+    .stock-info {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+    }
+    .stock-name {
+        font-size: 12px;
+        font-weight: bold;
+        color: #333d4b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .stock-code {
+        font-size: 9px;
+        color: #8b95a1;
+        white-space: nowrap;
+    }
+    .stock-values {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+    
+    /* 깜빡이 효과 */
+    @keyframes heartbeatUp {
+        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
+        50% { background-color: #ffebed; border-color: #f04452; }
+    }
+    @keyframes heartbeatDown {
+        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
+        50% { background-color: #e8f3ff; border-color: #3182f6; }
+    }
+    .blink-up-card { animation: heartbeatUp 1.0s infinite ease-in-out !important; }
+    .blink-down-card { animation: heartbeatDown 1.0s infinite ease-in-out !important; }
+    
+    /* 좌측 사이드바 메뉴 콤팩트 */
     section[data-testid="stSidebar"] {
         width: 20% !important;
         min-width: 210px !important;
@@ -59,67 +130,19 @@ st.markdown("""
         height: 28px !important;
         font-size: 12px !important;
     }
+    
+    /* 체크박스 영역 컴팩트 강제 설정 */
+    .compact-checkbox {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+    }
     div[data-testid="stCheckbox"] {
         margin: 0px !important;
         padding: 0px !important;
     }
-    div[data-testid="stCheckbox"] label {
-        font-size: 12px !important;
-    }
-    
-    /* 우측 미니 주가 카드 스타일 */
-    .stock-link {
-        text-decoration: none !important;
-        color: inherit !important;
-        display: block;
-        width: 100%;
-        margin-bottom: 3px;
-    }
-    .stock-card {
-        background-color: white;
-        border: 1px solid #e5e8eb;
-        border-radius: 6px;
-        padding: 6px 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.01);
-        width: 100%;
-        box-sizing: border-box;
-    }
-    .stock-info {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    .stock-name {
-        font-size: 12px;
-        font-weight: bold;
-        color: #333d4b;
-    }
-    .stock-code {
-        font-size: 9px;
-        color: #8b95a1;
-    }
-    .stock-values {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 12px;
-        font-weight: bold;
-    }
-    
-    /* 1초 주기 동시 깜빡임 CSS */
-    @keyframes heartbeatUp {
-        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
-        50% { background-color: #ffebed; border-color: #f04452; }
-    }
-    @keyframes heartbeatDown {
-        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
-        50% { background-color: #e8f3ff; border-color: #3182f6; }
-    }
-    .blink-up-card { animation: heartbeatUp 1.0s infinite ease-in-out !important; }
-    .blink-down-card { animation: heartbeatDown 1.0s infinite ease-in-out !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -232,11 +255,9 @@ while True:
 
             toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            # 가로폭 비율 고정
-            card_col, chk_col = st.columns([12, 1])
-            
-            with card_col:
-                st.markdown(f"""
+            # 🛠️ 핵심 변경: 주가 카드와 체크박스를 가로 일치 컨테이너로 강제 정렬합니다.
+            st.markdown(f"""
+                <div class="stock-row-container">
                     <a href="{toss_url}" target="_blank" class="stock-link">
                         <div class="stock-card {alert_class}">
                             <div class="stock-info">
@@ -249,11 +270,16 @@ while True:
                             </div>
                         </div>
                     </a>
-                """, unsafe_allow_html=True)
-                
-            with chk_col:
-                st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
-                info["alert_active"] = st.checkbox("", value=info["alert_active"], key=f"alert_{info['code']}", label_visibility="collapsed")
+                    <div class="compact-checkbox">
+            """, unsafe_allow_html=True)
+            
+            # 스트림릿 체크박스를 닫는 태그 사이에 끼워 넣어서 고정
+            info["alert_active"] = st.checkbox("", value=info["alert_active"], key=f"alert_{info['code']}", label_visibility="collapsed")
+            
+            st.markdown("""
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
             
         time.sleep(4)
         st.rerun()
