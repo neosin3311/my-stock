@@ -36,7 +36,7 @@ st.markdown("""
         transform: translateY(-1px);
     }
     
-    /* 🚨 모든 카드가 완벽하게 동일한 타이밍에 일치해서 깜빡이도록 절대적인 기준 설정 */
+    /* 🚨 브라우저 글로벌 시간축에 완벽히 동기화시키는 깜빡임 효과 */
     @keyframes blinkUp {
         0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #ffebed; border-color: #f04452; }
@@ -47,21 +47,34 @@ st.markdown("""
     }
     
     /* 
-       animation-delay를 0s로 강제 통일하고, 
-       브라우저의 시스템 시각에 의존하도록 재생 규칙을 똑같이 맞췄습니다.
+       모든 카드가 제각각 타이머를 돌리지 않고, 
+       브라우저의 절대적인 글로벌 타임라인 시계를 똑같이 공유하여 
+       정확히 같은 순간에 반응하도록 강제 통일합니다.
     */
     .blink-up-card {
-        animation: blinkUp 1.0s infinite ease-in-out !important;
-        animation-delay: 0s !important;
+        animation: blinkUp 1.2s infinite ease-in-out !important;
+        animation-delay: calc(0s - var(--timeline-offset, 0s)) !important;
+        animation-timeline: auto !important;
     }
     .blink-down-card {
-        animation: blinkDown 1.0s infinite ease-in-out !important;
-        animation-delay: 0s !important;
+        animation: blinkDown 1.2s infinite ease-in-out !important;
+        animation-delay: calc(0s - var(--timeline-offset, 0s)) !important;
+        animation-timeline: auto !important;
     }
     
     /* 스트림릿 기본 요소 간격 조정 */
     .block-container { padding-top: 2rem !important; }
     </style>
+    
+    <script>
+    // 브라우저의 실제 페이지 로드 시간 기준으로 CSS의 딜레이 편차를 제로(0)로 묶어주는 헬퍼 스크립트
+    const root = document.documentElement;
+    if (root) {
+        // 브라우저가 열린 시점(절대 시간)을 변수로 심어서 CSS 애니메이션 타이밍을 강제 동기화시킵니다.
+        const pageLoadTime = performance.now() / 1000;
+        root.style.setProperty('--timeline-offset', pageLoadTime + 's');
+    }
+    </script>
 """, unsafe_allow_html=True)
 
 SAVE_FILE = "my_stocks_web.json"
@@ -161,9 +174,11 @@ while True:
                 color = "#f04452" # 토스 레드
                 alert_class = "blink-up-card" if (info["alert_active"] and cr >= alert_limit) else ""
             elif is_down:
-                status_txt = f"▼ {cv:,} (-{cr:.2f}%)"
+                status_txt = f"▼ {cv:,} (-{cv:,}%)" if cv != 0 else f"▼ {cv:,} (-{cr:.2f}%)"
+                # API 데이터 매칭 오류 방지 보정
+                status_txt = f"▼ {abs(cv):,} (-{abs(cr):.2f}%)"
                 color = "#3182f6" # 토스 블루
-                alert_class = "blink-down-card" if (info["alert_active"] and cr >= alert_limit) else ""
+                alert_class = "blink-down-card" if (info["alert_active"] and abs(cr) >= alert_limit) else ""
             else:
                 status_txt = f"{cv:,} ({cr:.2f}%)"
                 color = "#4e5968"
