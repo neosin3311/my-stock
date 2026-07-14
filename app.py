@@ -33,53 +33,47 @@ st.markdown("""
         transform: translateY(-1px);
     }
     
-    /* 🚨 브라우저(PC) 절대 시각 기준으로 전 종목 배경색을 1초 주기로 강제 주입하는 스타일 */
-    .bg-up-blink {
-        background-color: #ffebed !important;
-        border-color: #f04452 !important;
+    /* 🚨 PC 시스템 시간(초)에 맞춰 100% 강제 동기화되는 CSS 애니메이션 */
+    @keyframes systemBlinkUp {
+        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
+        50% { background-color: #ffebed; border-color: #f04452; }
     }
-    .bg-down-blink {
-        background-color: #e8f3ff !important;
-        border-color: #3182f6 !important;
+    @keyframes systemBlinkDown {
+        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
+        50% { background-color: #e8f3ff; border-color: #3182f6; }
+    }
+    
+    /* 
+       재생 시작 시간을 음수(-) 값으로 밀어 넣어 
+       현재 PC 시각의 초 단위 위치와 애니메이션 재생 주기를 강제로 일치시킵니다.
+    */
+    .blink-up-card {
+        animation: systemBlinkUp 1.0s infinite ease-in-out !important;
+        animation-delay: calc(var(--start-delay, 0s)) !important;
+    }
+    .blink-down-card {
+        animation: systemBlinkDown 1.0s infinite ease-in-out !important;
+        animation-delay: calc(var(--start-delay, 0s)) !important;
     }
     
     .block-container { padding-top: 2rem !important; }
     </style>
 
     <script>
-    // 💡 핵심: 파이썬 서버의 새로고침 렉에 영향받지 않는 브라우저 실시간 무한 루프
-    if (window.blinkInterval) {
-        clearInterval(window.blinkInterval);
+    // 스트림릿이 화면을 갱신할 때마다 실시간으로 PC의 현재 시각(초+밀리초)을 계산하여 CSS 속성 주입
+    function syncBlinkTime() {
+        const root = document.documentElement;
+        if (root) {
+            const now = new Date();
+            // 현재 초와 밀리초를 소수점으로 환산 (예: 45.23초)
+            const currentSeconds = now.getSeconds() + (now.getMilliseconds() / 1000);
+            // 애니메이션 주기인 1초 기준 딜레이를 음수로 심어 타이밍 일치
+            const delay = -(currentSeconds % 1.0);
+            root.style.setProperty('--start-delay', delay + 's');
+        }
     }
-    
-    window.blinkInterval = setInterval(() => {
-        // 내 PC 시스템 시계의 밀리초 단위를 가져옵니다.
-        const now = new Date();
-        const seconds = now.getSeconds();
-        const milliseconds = now.getMilliseconds();
-        
-        // 매 초의 앞부분 0.5초 동안 켜지고, 뒷부분 0.5초 동안 꺼지도록 규칙화 (NTP 동기화)
-        const isBlinkOn = milliseconds < 500; 
-
-        // 깜빡임 대상이 되는 모든 카드를 한 번에 가져와서 똑같이 클래스를 제어합니다.
-        const upCards = document.querySelectorAll('.should-blink-up');
-        upCards.forEach(card => {
-            if (isBlinkOn) {
-                card.classList.add('bg-up-blink');
-            } else {
-                card.classList.remove('bg-up-blink');
-            }
-        });
-
-        const downCards = document.querySelectorAll('.should-blink-down');
-        downCards.forEach(card => {
-            if (isBlinkOn) {
-                card.classList.add('bg-down-blink');
-            } else {
-                card.classList.remove('bg-down-blink');
-            }
-        });
-    }, 50); // 0.05초마다 브라우저가 PC 시간을 체크하므로 렉 없이 칼같이 동기화됩니다.
+    // 최초 실행 및 스트림릿 다시 렌더링 시 즉시 동기화 적용
+    syncBlinkTime();
     </script>
 """, unsafe_allow_html=True)
 
@@ -156,7 +150,6 @@ def get_stock_data(code):
 
 placeholder = st.empty()
 
-# 4초마다 갱신 루프를 돌려 부하를 최소화하면서, 자바스크립트가 무한 깜빡임을 통제합니다.
 while True:
     with placeholder.container():
         for name, info in st.session_state.my_stocks.items():
@@ -173,19 +166,18 @@ while True:
             is_up = rf in [1, 2]
             is_down = rf in [4, 5]
             
-            # 자바스크립트가 찝어낼 깜빡이 대상 식별자 클래스 부여
-            js_target_class = ""
+            alert_class = ""
             
             if is_up:
                 status_txt = f"▲ {cv:,} (+{cr:.2f}%)"
                 color = "#f04452"
                 if info["alert_active"] and cr >= alert_limit:
-                    js_target_class = "should-blink-up"
+                    alert_class = "blink-up-card"
             elif is_down:
                 status_txt = f"▼ {abs(cv):,} (-{abs(cr):.2f}%)"
                 color = "#3182f6"
                 if info["alert_active"] and abs(cr) >= alert_limit:
-                    js_target_class = "should-blink-down"
+                    alert_class = "blink-down-card"
             else:
                 status_txt = f"{cv:,} ({cr:.2f}%)"
                 color = "#4e5968"
@@ -194,7 +186,7 @@ while True:
 
             st.markdown(f"""
                 <a href="{toss_url}" target="_blank" class="stock-link">
-                    <div class="stock-card {js_target_class}">
+                    <div class="stock-card {alert_class}">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 16px; font-weight: bold; color: #333d4b;">{name}</span>
                             <span style="font-size: 12px; color: #8b95a1;">({info['code']})</span>
