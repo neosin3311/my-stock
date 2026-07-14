@@ -11,7 +11,7 @@ st.markdown("""
     <style>
     .stApp { background-color: #f9fafb; }
     
-    /* 🚨 [상단 잘림 해결] 스트림릿 기본 헤더와 불필요한 마진 완전 삭제 */
+    /* [상단 잘림 해결 및 본문 정렬] */
     header[data-testid="stHeader"] {
         display: none !important;
     }
@@ -22,7 +22,8 @@ st.markdown("""
     .block-container { 
         padding-top: 0.5rem !important; 
         padding-bottom: 0.5rem !important; 
-        max-width: 100% !important;
+        max-width: 360px !important; /* 🚨 가로 항목이 너무 넓게 늘어나지 않도록 절대폭 제한 */
+        margin: 0 auto !important;   /* 화면 정중앙 정렬 */
     }
     
     /* 좌측 사이드바 메뉴 콤팩트 다이어트 */
@@ -229,10 +230,10 @@ while True:
                 status_txt = f"{cr:.2f}%"
                 color = "#4e5968"
 
-            # 🚨 [수정 완료] toss_url 변수를 사용할 블록 바로 직전에 선언하여 NameError를 원천 해결했습니다.
             toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            card_col, chk_col = st.columns([18, 1])
+            # 가로폭 비율 고정
+            card_col, chk_col = st.columns([12, 1])
             
             with card_col:
                 st.markdown(f"""
