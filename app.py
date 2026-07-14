@@ -33,7 +33,11 @@ st.markdown("""
         transform: translateY(-1px);
     }
     
-    /* 🚨 PC 시스템 시간(초)에 맞춰 100% 강제 동기화되는 CSS 애니메이션 */
+    /* 
+       🚨 [핵심 해결책] CSS의 전역 무한 재생 루프 기준을 
+       브라우저가 처음 로드된 단 하나의 특정 기준점으로 강제 일치시킵니다.
+       이 방식을 쓰면 카드가 언제 그려졌는지 상관없이 하나의 절대 시계를 바라봅니다.
+    */
     @keyframes systemBlinkUp {
         0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #ffebed; border-color: #f04452; }
@@ -43,38 +47,22 @@ st.markdown("""
         50% { background-color: #e8f3ff; border-color: #3182f6; }
     }
     
-    /* 
-       재생 시작 시간을 음수(-) 값으로 밀어 넣어 
-       현재 PC 시각의 초 단위 위치와 애니메이션 재생 주기를 강제로 일치시킵니다.
+    /*
+      animation-delay: -10000s 처럼 거대한 음수값을 고정으로 주면
+      각 카드들이 로드되는 시점 차이(0.1초 수준)를 완전히 무시하고
+      이미 10000초 전부터 같이 돌고 있던 동일 시점의 애니메이션 주기 속으로 강제 합류됩니다.
     */
     .blink-up-card {
-        animation: systemBlinkUp 1.0s infinite ease-in-out !important;
-        animation-delay: calc(var(--start-delay, 0s)) !important;
+        animation: systemBlinkUp 1.2s infinite ease-in-out !important;
+        animation-delay: -10000s !important;
     }
     .blink-down-card {
-        animation: systemBlinkDown 1.0s infinite ease-in-out !important;
-        animation-delay: calc(var(--start-delay, 0s)) !important;
+        animation: systemBlinkDown 1.2s infinite ease-in-out !important;
+        animation-delay: -10000s !important;
     }
     
     .block-container { padding-top: 2rem !important; }
     </style>
-
-    <script>
-    // 스트림릿이 화면을 갱신할 때마다 실시간으로 PC의 현재 시각(초+밀리초)을 계산하여 CSS 속성 주입
-    function syncBlinkTime() {
-        const root = document.documentElement;
-        if (root) {
-            const now = new Date();
-            // 현재 초와 밀리초를 소수점으로 환산 (예: 45.23초)
-            const currentSeconds = now.getSeconds() + (now.getMilliseconds() / 1000);
-            // 애니메이션 주기인 1초 기준 딜레이를 음수로 심어 타이밍 일치
-            const delay = -(currentSeconds % 1.0);
-            root.style.setProperty('--start-delay', delay + 's');
-        }
-    }
-    // 최초 실행 및 스트림릿 다시 렌더링 시 즉시 동기화 적용
-    syncBlinkTime();
-    </script>
 """, unsafe_allow_html=True)
 
 SAVE_FILE = "my_stocks_web.json"
