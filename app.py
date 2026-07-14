@@ -118,16 +118,20 @@ if st.sidebar.button("💾 설정 저장", use_container_width=True):
 st.title("📊 실시간 주가 모니터 전광판")
 
 def get_stock_data(code):
-    # 가장 빠르고 오류 없는 네이버 실시간 주식 중계 경로 사용
+    # 크래시 없는 네이버 정식 실시간 데이터 채널로 복구
     url = f"https://polling.finance.naver.com/api/realtime?query=SERVICE_ITEM:{code}"
     try:
         res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=3)
         if res.status_code == 200:
             item = res.json()['result']['areas'][0]['datas'][0]
-            # nv: 현재가, cv: 전일대비 변동액, cr: 변동률(%), rf: 등락구분코드 (1,2: 상승 / 4,5: 하락)
-            return {"price": item['nv'], "cv": item['cv'], "cr": item['cr'], "rf": item['rf']}
-    except Exception as e:
-        return None
+            # 수치 데이터 형변환을 강제하여 조건문 오류를 원천 차단합니다.
+            return {
+                "price": int(item['nv']), 
+                "cv": int(item['cv']), 
+                "cr": float(item['cr']), 
+                "rf": int(item['rf'])
+            }
+    except: return None
 
 # 화면 전체 갱신을 위한 빈 캔버스 정의
 placeholder = st.empty()
@@ -153,7 +157,6 @@ while True:
             if is_up:
                 status_txt = f"▲ {cv:,} (+{cr:.2f}%)"
                 color = "#f04452" # 토스 레드
-                # 알림 기준 충족 시 깜빡이 클래스 주입
                 alert_class = "blink-up-card" if (info["alert_active"] and cr >= alert_limit) else ""
             elif is_down:
                 status_txt = f"▼ {cv:,} (-{cr:.2f}%)"
