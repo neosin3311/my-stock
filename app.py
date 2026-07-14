@@ -11,7 +11,7 @@ st.markdown("""
     <style>
     .stApp { background-color: #f9fafb; }
     
-    /* 🚨 [상단 잘림 해결] 스트림릿 기본 헤더와 여백을 강제로 없앱니다 */
+    /* 🚨 [상단 잘림 해결] 스트림릿 기본 헤더와 불필요한 마진 완전 삭제 */
     header[data-testid="stHeader"] {
         display: none !important;
     }
@@ -228,6 +228,9 @@ while True:
             else:
                 status_txt = f"{cr:.2f}%"
                 color = "#4e5968"
+
+            # 🚨 [수정 완료] toss_url 변수를 사용할 블록 바로 직전에 선언하여 NameError를 원천 해결했습니다.
+            toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
             card_col, chk_col = st.columns([18, 1])
             
