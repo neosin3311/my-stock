@@ -25,49 +25,38 @@ st.markdown("""
         justify-content: space-between;
         align-items: center;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        transition: transform 0.1s, box-shadow 0.2s;
+    }
+    .stock-card:hover { 
+        background-color: #f2f4f6;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transform: translateY(-1px);
     }
     
-    /* 🚨 자바스크립트가 시스템 시계에 맞춰 실시간으로 주입할 등락 색상 클래스 */
-    .bg-up-sync { background-color: #ffebed !important; border-color: #f04452 !important; }
-    .bg-down-sync { background-color: #e8f3ff !important; border-color: #3182f6 !important; }
+    /* 🚨 [해결 핵심] 웹페이지 전체에 1초짜리 절대 심장박동(애니메이션)을 단 하나만 선언합니다. */
+    @keyframes heartbeatUp {
+        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
+        50% { background-color: #ffebed; border-color: #f04452; }
+    }
+    @keyframes heartbeatDown {
+        0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
+        50% { background-color: #e8f3ff; border-color: #3182f6; }
+    }
+    
+    /* 
+       모든 카드가 똑같은 애니메이션 이름과 시간(1초)을 바라보게 합니다.
+       브라우저는 동일한 키프레임 애니메이션을 하나의 글로벌 타임라인으로 처리하므로,
+       카드들이 각자 로드되었어도 한 몸처럼 일치해서 번쩍이게 됩니다.
+    */
+    .blink-up-card {
+        animation: heartbeatUp 1.0s infinite ease-in-out !important;
+    }
+    .blink-down-card {
+        animation: heartbeatDown 1.0s infinite ease-in-out !important;
+    }
     
     .block-container { padding-top: 2rem !important; }
     </style>
-
-    <script>
-    // 기존에 돌고 있던 루프가 있다면 중복 실행 방지를 위해 제거
-    if (window.blinkAnimationId) {
-        cancelAnimationFrame(window.blinkAnimationId);
-    }
-
-    function runBlinkSync() {
-        // PC 내부 시스템 시계의 현재 밀리초를 가져옵니다.
-        const now = new Date();
-        const ms = now.getMilliseconds();
-        
-        # 매 초의 전반부 0.5초(500ms 미만) 동안 켜지고, 후반부 0.5초 동안 꺼지도록 동기화
-        const isOn = ms < 500; 
-
-        // 화면에 있는 모든 알림 대상 카드를 긁어옵니다.
-        const upCards = document.querySelectorAll('.sync-blink-up');
-        upCards.forEach(card => {
-            if (isOn) card.classList.add('bg-up-sync');
-            else card.classList.remove('bg-up-sync');
-        });
-
-        const downCards = document.querySelectorAll('.sync-blink-down');
-        downCards.forEach(card => {
-            if (isOn) card.classList.add('bg-down-sync');
-            else card.classList.remove('bg-down-sync');
-        });
-
-        // 모니터 주사율(초당 60회 이상)에 맞춰 가장 부드럽고 정확하게 실시간 루프 실행
-        window.blinkAnimationId = requestAnimationFrame(runBlinkSync);
-    }
-
-    // 스트림릿 새로고침과 상관없이 자바스크립트 엔진 즉시 가동
-    runBlinkSync();
-    </script>
 """, unsafe_allow_html=True)
 
 SAVE_FILE = "my_stocks_web.json"
@@ -159,19 +148,18 @@ while True:
             is_up = rf in [1, 2]
             is_down = rf in [4, 5]
             
-            # 자바스크립트 추적용 고정 식별자 배치
-            sync_class = ""
+            alert_class = ""
             
             if is_up:
                 status_txt = f"▲ {cv:,} (+{cr:.2f}%)"
                 color = "#f04452"
                 if info["alert_active"] and cr >= alert_limit:
-                    sync_class = "sync-blink-up"
+                    alert_class = "blink-up-card"
             elif is_down:
                 status_txt = f"▼ {abs(cv):,} (-{abs(cr):.2f}%)"
                 color = "#3182f6"
                 if info["alert_active"] and abs(cr) >= alert_limit:
-                    sync_class = "sync-blink-down"
+                    alert_class = "blink-down-card"
             else:
                 status_txt = f"{cv:,} ({cr:.2f}%)"
                 color = "#4e5968"
@@ -180,7 +168,7 @@ while True:
 
             st.markdown(f"""
                 <a href="{toss_url}" target="_blank" class="stock-link">
-                    <div class="stock-card {sync_class}">
+                    <div class="stock-card {alert_class}">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 16px; font-weight: bold; color: #333d4b;">{name}</span>
                             <span style="font-size: 12px; color: #8b95a1;">({info['code']})</span>
