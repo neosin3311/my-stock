@@ -4,14 +4,14 @@ import json
 import os
 import time
 
-# 1. 웹페이지 레이아웃 설정
+# 1. 웹페이지 레이아웃 및 콤팩트 디자인 설정
 st.set_page_config(page_title="미니 전광판", layout="wide")
 
 st.markdown("""
     <style>
     .stApp { background-color: #f9fafb; }
     
-    /* 상단 잘림 해결 및 모바일/미니 창 반응형 꽉 참 설정 */
+    /* 상단 잘림 해결 및 모바일/미니 창 반응형 가로 폭 제어 */
     header[data-testid="stHeader"] {
         display: none !important;
     }
@@ -22,41 +22,37 @@ st.markdown("""
     .block-container { 
         padding-top: 0.5rem !important; 
         padding-bottom: 0.5rem !important; 
-        max-width: 100% !important; /* 창 크기에 따라 가로가 유연하게 변하도록 반응형 처리 */
+        max-width: 340px !important; /* 창이 커져도 위젯 형태의 아담한 너비(340px)로 유지 */
         padding-left: 10px !important;
         padding-right: 10px !important;
+        margin: 0 auto !important;
     }
     
-    /* 🚨 [핵심 수정] 카드와 체크박스가 절대 밑으로 떨어지지 않도록 가로 배치 강제 고정 */
-    .stock-row-container {
+    /* 🚨 [정렬 완전 고정] 카드와 체크박스가 무슨 일이 있어도 가로로 붙어있도록 유동 레이아웃 설계 */
+    .compact-stock-row {
         display: flex;
         align-items: center;
-        gap: 8px;
         width: 100%;
         margin-bottom: 6px;
-    }
-    
-    .stock-link {
-        text-decoration: none !important;
-        color: inherit !important;
-        flex-grow: 1; /* 창이 늘어나고 줄어들 때 카드가 유연하게 크기 조절 */
-        min-width: 0; /* 글자가 잘리지 않고 카드가 부드럽게 쪼그라들도록 보정 */
-    }
-    
-    .stock-card {
         background-color: white;
         border: 1px solid #e5e8eb;
         border-radius: 6px;
         padding: 6px 10px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+        box-sizing: border-box;
+        gap: 8px;
+    }
+    
+    .stock-click-area {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.01);
-        width: 100%;
-        box-sizing: border-box;
+        flex-grow: 1;
+        min-width: 0;
+        text-decoration: none !important;
+        color: inherit !important;
     }
     
-    /* 텍스트 겹침 방지 처리 */
     .stock-info {
         display: flex;
         align-items: center;
@@ -85,7 +81,17 @@ st.markdown("""
         white-space: nowrap;
     }
     
-    /* 깜빡이 효과 */
+    /* 🚨 체크박스가 카드 내부 오른쪽 끝에 강제로 끼어있게 고정 */
+    .custom-checkbox-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0; /* 창이 좁아져도 체크박스 영역이 절대로 뭉개지지 않음 */
+    }
+    
+    /* 1초 주기 동시 깜빡임 CSS */
     @keyframes heartbeatUp {
         0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #ffebed; border-color: #f04452; }
@@ -94,10 +100,10 @@ st.markdown("""
         0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #e8f3ff; border-color: #3182f6; }
     }
-    .blink-up-card { animation: heartbeatUp 1.0s infinite ease-in-out !important; }
-    .blink-down-card { animation: heartbeatDown 1.0s infinite ease-in-out !important; }
+    .blink-up { animation: heartbeatUp 1.0s infinite ease-in-out !important; }
+    .blink-down { animation: heartbeatDown 1.0s infinite ease-in-out !important; }
     
-    /* 좌측 사이드바 메뉴 콤팩트 */
+    /* 좌측 사이드바 메뉴 콤팩트 다이어트 */
     section[data-testid="stSidebar"] {
         width: 20% !important;
         min-width: 210px !important;
@@ -130,19 +136,6 @@ st.markdown("""
         height: 28px !important;
         font-size: 12px !important;
     }
-    
-    /* 체크박스 영역 컴팩트 강제 설정 */
-    .compact-checkbox {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 16px;
-        height: 16px;
-    }
-    div[data-testid="stCheckbox"] {
-        margin: 0px !important;
-        padding: 0px !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -169,7 +162,7 @@ def save_stocks(data):
 if "my_stocks" not in st.session_state:
     st.session_state.my_stocks = load_stocks()
 
-# ----------------- 좌측: 사이드바 -----------------
+# ----------------- 좌측: 설정 사이드바 -----------------
 st.sidebar.markdown("### ⭐ 관심 종목")
 
 c1, c2 = st.sidebar.columns(2)
@@ -237,43 +230,41 @@ while True:
             is_up = rf in [1, 2]
             is_down = rf in [4, 5]
             
+            # 깜빡이 타겟 스타일 지정
             alert_class = ""
-            
             if is_up:
                 status_txt = f"+{cr:.2f}%"
                 color = "#f04452"
                 if info["alert_active"] and cr >= alert_limit:
-                    alert_class = "blink-up-card"
+                    alert_class = "blink-up"
             elif is_down:
                 status_txt = f"-{abs(cr):.2f}%"
                 color = "#3182f6"
                 if info["alert_active"] and abs(cr) >= alert_limit:
-                    alert_class = "blink-down-card"
+                    alert_class = "blink-down"
             else:
                 status_txt = f"{cr:.2f}%"
                 color = "#4e5968"
 
             toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            # 🛠️ 핵심 변경: 주가 카드와 체크박스를 가로 일치 컨테이너로 강제 정렬합니다.
+            # 🛠️ [정렬 버그 완벽 패치] 단일 HTML 틀 안에서 카드 내용과 체크박스를 양방향 가로 정렬합니다.
             st.markdown(f"""
-                <div class="stock-row-container">
-                    <a href="{toss_url}" target="_blank" class="stock-link">
-                        <div class="stock-card {alert_class}">
-                            <div class="stock-info">
-                                <span class="stock-name">{name}</span>
-                                <span class="stock-code">{info['code']}</span>
-                            </div>
-                            <div class="stock-values" style="color: {color};">
-                                <span>{price:,}원</span>
-                                <span>{status_txt}</span>
-                            </div>
+                <div class="compact-stock-row {alert_class}">
+                    <a href="{toss_url}" target="_blank" class="stock-click-area">
+                        <div class="stock-info">
+                            <span class="stock-name">{name}</span>
+                            <span class="stock-code">{info['code']}</span>
+                        </div>
+                        <div class="stock-values" style="color: {color};">
+                            <span>{price:,}원</span>
+                            <span>{status_txt}</span>
                         </div>
                     </a>
-                    <div class="compact-checkbox">
+                    <div class="custom-checkbox-container">
             """, unsafe_allow_html=True)
             
-            # 스트림릿 체크박스를 닫는 태그 사이에 끼워 넣어서 고정
+            # 스트림릿 고유 체크박스가 안전하게 튕김 없이 결합됩니다.
             info["alert_active"] = st.checkbox("", value=info["alert_active"], key=f"alert_{info['code']}", label_visibility="collapsed")
             
             st.markdown("""
