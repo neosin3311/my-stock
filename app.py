@@ -11,10 +11,22 @@ st.markdown("""
     <style>
     .stApp { background-color: #f9fafb; }
     
-    /* 상단 잘림 해결 및 본문 가로폭 최소화 */
+    /* 🚨 [수정 핵심] 헤더 바의 배경과 높이만 지우고, 사이드바 열기 화살표(>)는 정상 노출되도록 패치 */
     header[data-testid="stHeader"] {
-        display: none !important;
+        background: transparent !important;
+        height: 0px !important;
     }
+    /* 사이드바 열기 버튼을 화면 상단 왼쪽 구석에 배치 */
+    button[data-testid="collapsedSidebarCollapsedUIButton"] {
+        top: 8px !important;
+        left: 8px !important;
+        background-color: white !important;
+        border: 1px solid #e5e8eb !important;
+        border-radius: 4px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        z-index: 999999 !important;
+    }
+    
     div[data-testid="stMainBlockContainer"] {
         padding-top: 0px !important;
         margin-top: 0px !important;
@@ -22,13 +34,13 @@ st.markdown("""
     .block-container { 
         padding-top: 0.5rem !important; 
         padding-bottom: 0.5rem !important; 
-        max-width: 280px !important; /* 🚨 주식 항목의 전체 가로 길이를 아주 작게 강제 제한 */
+        max-width: 280px !important; /* 주식 항목 가로 길이 제한 */
         margin: 0 auto !important;   /* 화면 중앙 정렬 */
         padding-left: 5px !important;
         padding-right: 5px !important;
     }
     
-    /* 🚨 [체크박스 맨 앞으로 고정] 절대 한 줄에서 깨지지 않는 특수 가로 정렬 */
+    /* [체크박스 맨 앞으로 고정] 한 줄 유지 레이아웃 */
     .stock-row-fixed {
         display: flex;
         align-items: center;
@@ -36,8 +48,6 @@ st.markdown("""
         margin-bottom: 5px;
         gap: 6px;
     }
-    
-    /* 체크박스 영역을 맨 앞으로 배치하고 찌그러짐 방지 */
     .front-checkbox-container {
         display: flex;
         align-items: center;
@@ -66,7 +76,6 @@ st.markdown("""
         width: 100%;
         box-sizing: border-box;
     }
-    
     .stock-info {
         display: flex;
         align-items: center;
@@ -223,17 +232,14 @@ while True:
 
             toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            # 🛠️ 체크박스 컨테이너를 맨 앞으로 강제 배치 구조화
             st.markdown(f"""
                 <div class="stock-row-container">
                     <div class="stock-row-fixed">
                         <div class="front-checkbox-container">
             """, unsafe_allow_html=True)
             
-            # 체크박스를 먼저 렌더링하여 맨 앞으로 보냅니다.
             info["alert_active"] = st.checkbox("", value=info["alert_active"], key=f"alert_{info['code']}", label_visibility="collapsed")
             
-            # 이어서 주가 카드가 오도록 배치
             st.markdown(f"""
                         </div>
                         <a href="{toss_url}" target="_blank" class="stock-link">
