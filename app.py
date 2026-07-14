@@ -4,78 +4,85 @@ import json
 import os
 import time
 
-# 1. 웹페이지 디자인 및 레이아웃 설정 (모바일/작은 창에서도 완벽히 찌그러지며 줄어들도록 개선)
+# 1. 웹페이지 레이아웃 설정
 st.set_page_config(page_title="미니 전광판", layout="wide")
 
 st.markdown("""
     <style>
-    /* 전체 배경 및 폰트 세팅 */
     .stApp { background-color: #f9fafb; }
     
-    /* 1. 상단 잘림 현상 원천 방지 (기본 여백 제거) */
+    /* 1. 우측 메인 영역 상단 잘림 현상 방지 및 여백 최소화 */
     .block-container { 
-        padding-top: 1rem !important; 
-        padding-bottom: 1rem !important; 
+        padding-top: 0.5rem !important; 
+        padding-bottom: 0.5rem !important; 
         max-width: 100% !important;
     }
     
-    /* 2. 브라우저 크기를 줄이면 메뉴와 카드가 모두 함께 쪼그라들도록 반응형 CSS 구현 */
-    @media (max-width: 1200px) {
-        .mini-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
+    /* 2. 좌측 메뉴(사이드바) 여백 대폭 줄여 위로 바짝 붙이기 */
+    section[data-testid="stSidebar"] {
+        width: 20% !important;
+        min-width: 190px !important;
+    }
+    section[data-testid="stSidebar"] .stWidgetForm {
+        padding: 2px !important;
+    }
+    /* 사이드바 내부 아이템 간격(Gap) 최소화 */
+    div[data-testid="stSidebarUserContent"] {
+        padding-top: 1rem !important;
+        gap: 0.2rem !important;
+    }
+    /* 입력창 및 위젯들의 세로 높이와 여백 축소 */
+    div[data-testid="stNumberInput"], div[data-testid="stTextInput"] {
+        margin-bottom: 4px !important;
+    }
+    div[data-testid="stNumberInput"] > label, div[data-testid="stTextInput"] > label {
+        margin-bottom: 2px !important;
+        font-size: 12px !important;
     }
     
-    /* 링크 기본 스타일 무력화 */
+    /* 3. 우측 미니 주가 카드 스타일 */
     .stock-link {
         text-decoration: none !important;
         color: inherit !important;
         display: block;
         width: 100%;
+        margin-bottom: 3px;
     }
-    
-    /* 콤팩트 미니 카드 디자인 */
     .stock-card {
         background-color: white;
         border: 1px solid #e5e8eb;
-        border-radius: 8px;
-        padding: 8px 12px;
+        border-radius: 6px;
+        padding: 6px 10px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.01);
         width: 100%;
         box-sizing: border-box;
     }
-    
     .stock-info {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
     }
     .stock-name {
-        font-size: 13px;
+        font-size: 12px;
         font-weight: bold;
         color: #333d4b;
-        white-space: nowrap;
     }
     .stock-code {
-        font-size: 10px;
+        font-size: 9px;
         color: #8b95a1;
     }
-    
     .stock-values {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: bold;
-        white-space: nowrap;
     }
     
-    /* 🚨 칼군무 동시 깜빡임 전역 규칙 */
+    /* 4. 1초 주기 동시 깜빡임 CSS */
     @keyframes heartbeatUp {
         0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #ffebed; border-color: #f04452; }
@@ -84,24 +91,13 @@ st.markdown("""
         0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #e8f3ff; border-color: #3182f6; }
     }
+    .blink-up-card { animation: heartbeatUp 1.0s infinite ease-in-out !important; }
+    .blink-down-card { animation: heartbeatDown 1.0s infinite ease-in-out !important; }
     
-    .blink-up-card {
-        animation: heartbeatUp 1.0s infinite ease-in-out !important;
-    }
-    .blink-down-card {
-        animation: heartbeatDown 1.0s infinite ease-in-out !important;
-    }
-    
-    /* 왼쪽 사이드바 메뉴 전체적인 컴팩트 스케일링 */
-    section[data-testid="stSidebar"] {
-        width: 20% !important; /* 화면 가로폭의 딱 1/5 가량으로 강제 축소 */
-        min-width: 200px !important;
-    }
-    section[data-testid="stSidebar"] .stWidgetForm {
-        padding: 5px !important;
-    }
-    section[data-testid="stSidebar"] h1 {
-        font-size: 1.2rem !important;
+    /* 스트림릿 체크박스 자체의 불필요한 마진 제거 */
+    div[data-testid="stCheckbox"] {
+        margin: 0px !important;
+        padding: 0px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -129,11 +125,11 @@ def save_stocks(data):
 if "my_stocks" not in st.session_state:
     st.session_state.my_stocks = load_stocks()
 
-# ----------------- 좌측: 콤팩트 설정 사이드바 (화면의 1/5 가량 크기) -----------------
+# ----------------- 좌측: 상단 밀착형 콤팩트 사이드바 -----------------
 st.sidebar.markdown("### ⭐ 관심 종목")
 
-new_name = st.sidebar.text_input("종목명", placeholder="예: 삼성전자", key="input_name")
-new_code = st.sidebar.text_input("종목코드", placeholder="예: 005930", key="input_code")
+new_name = st.sidebar.text_input("종목명", placeholder="예: 삼성전자", key="in_name")
+new_code = st.sidebar.text_input("종목코드", placeholder="예: 005930", key="in_code")
 if st.sidebar.button("추가", use_container_width=True):
     if new_name and len(new_code) == 6 and new_code.isdigit():
         st.session_state.my_stocks[new_name] = {"code": new_code, "checked": True, "alert_active": True}
@@ -141,7 +137,6 @@ if st.sidebar.button("추가", use_container_width=True):
         st.rerun()
 
 st.sidebar.markdown("---")
-
 alert_limit = st.sidebar.number_input("알림 기준 (%)", min_value=0.0, max_value=100.0, value=float(st.session_state.my_stocks.get("_alert_limit", 3.0)), step=0.1)
 st.session_state.my_stocks["_alert_limit"] = alert_limit
 
@@ -158,9 +153,9 @@ for name in list(st.session_state.my_stocks.keys()):
 
 if st.sidebar.button("💾 설정 저장", use_container_width=True):
     save_stocks(st.session_state.my_stocks)
-    st.sidebar.success("설정 완료!")
+    st.sidebar.success("저장 완료")
 
-# ----------------- 우측: 전광판 영역 (중복 오류 원천 제거) -----------------
+# ----------------- 우측: 실시간 미니 전광판 메인 영역 -----------------
 st.markdown("### 📊 실시간 주가")
 
 def get_stock_data(code):
@@ -177,7 +172,7 @@ def get_stock_data(code):
             }
     except: return None
 
-# 💡 화면이 아래로 늘어나거나 중복 카드들이 누적되지 않도록 완전히 새로 그리는 빈 컨테이너 적용
+# 누적 현상을 완전히 막기 위해 빈 화면 공간(Placeholder) 하나만 사용합니다.
 placeholder = st.empty()
 
 while True:
@@ -214,7 +209,7 @@ while True:
 
             toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
-            # 기존의 큰 카드 컴포넌트를 완전히 삭제하고 미니 레이아웃 하나로 단일 통일했습니다.
+            # 🛠️ 예전 큰 카드 렌더링 코드를 완전히 삭제하고 오직 미니 가로 배열로만 고정 출력합니다.
             card_col, chk_col = st.columns([15, 1])
             
             with card_col:
@@ -234,7 +229,6 @@ while True:
                 """, unsafe_allow_html=True)
                 
             with chk_col:
-                # 우측 미니 스위치 정밀 배치
                 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
                 info["alert_active"] = st.checkbox("", value=info["alert_active"], key=f"alert_{info['code']}", label_visibility="collapsed")
             
