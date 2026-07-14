@@ -11,26 +11,31 @@ st.markdown("""
     <style>
     .stApp { background-color: #f9fafb; }
     
-    /* 1. 메인 영역 여백 최소화 */
+    /* 🚨 [상단 잘림 해결] 스트림릿 기본 헤더와 여백을 강제로 없앱니다 */
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+    div[data-testid="stMainBlockContainer"] {
+        padding-top: 0px !important;
+        margin-top: 0px !important;
+    }
     .block-container { 
-        padding-top: 0.3rem !important; 
-        padding-bottom: 0.3rem !important; 
+        padding-top: 0.5rem !important; 
+        padding-bottom: 0.5rem !important; 
         max-width: 100% !important;
     }
     
-    /* 2. 좌측 사이드바 메뉴 콤팩트 다이어트 (위로 바짝 붙이기) */
+    /* 좌측 사이드바 메뉴 콤팩트 다이어트 */
     section[data-testid="stSidebar"] {
         width: 20% !important;
         min-width: 210px !important;
     }
-    /* 사이드바 여백 및 내부 위젯 간격 최대로 압축 */
     div[data-testid="stSidebarUserContent"] {
         padding-top: 0.5rem !important;
         padding-left: 0.5rem !important;
         padding-right: 0.5rem !important;
         gap: 0.1rem !important;
     }
-    /* 입력창 및 레이블 여백 최소화 */
     div[data-testid="stNumberInput"], div[data-testid="stTextInput"] {
         margin-bottom: 2px !important;
     }
@@ -38,25 +43,21 @@ st.markdown("""
         margin-bottom: 1px !important;
         font-size: 11px !important;
     }
-    /* 입력 폼 두께 얇게 조절 */
     .stTextInput input, .stNumberInput input {
         padding: 4px 8px !important;
         height: 28px !important;
         font-size: 12px !important;
     }
-    /* 사이드바 제목 크기 축소 */
     section[data-testid="stSidebar"] h3 {
         font-size: 14px !important;
         margin-top: 5px !important;
         margin-bottom: 5px !important;
     }
-    /* 버튼 높이 줄이기 */
     .stButton button {
         padding: 2px 10px !important;
         height: 28px !important;
         font-size: 12px !important;
     }
-    /* 체크박스 여백 제로화 */
     div[data-testid="stCheckbox"] {
         margin: 0px !important;
         padding: 0px !important;
@@ -65,7 +66,7 @@ st.markdown("""
         font-size: 12px !important;
     }
     
-    /* 3. 우측 미니 주가 카드 스타일 */
+    /* 우측 미니 주가 카드 스타일 */
     .stock-link {
         text-decoration: none !important;
         color: inherit !important;
@@ -107,7 +108,7 @@ st.markdown("""
         font-weight: bold;
     }
     
-    /* 4. 1초 주기 동시 깜빡임 CSS */
+    /* 1초 주기 동시 깜빡임 CSS */
     @keyframes heartbeatUp {
         0%, 100% { background-color: #ffffff; border-color: #e5e8eb; }
         50% { background-color: #ffebed; border-color: #f04452; }
@@ -144,10 +145,9 @@ def save_stocks(data):
 if "my_stocks" not in st.session_state:
     st.session_state.my_stocks = load_stocks()
 
-# ----------------- 좌측: 초소형으로 위로 압축한 사이드바 -----------------
+# ----------------- 좌측: 사이드바 -----------------
 st.sidebar.markdown("### ⭐ 관심 종목")
 
-# 종목명과 코드를 한 줄에 촘촘하게 넣기 위해 가로 분할
 c1, c2 = st.sidebar.columns(2)
 new_name = c1.text_input("종목명", placeholder="삼성전자", key="in_name")
 new_code = c2.text_input("코드", placeholder="005930", key="in_code")
@@ -228,8 +228,6 @@ while True:
             else:
                 status_txt = f"{cr:.2f}%"
                 color = "#4e5968"
-
-            toss_url = f"https://www.tossinvest.com/?focusedProductCode=A{info['code']}"
 
             card_col, chk_col = st.columns([18, 1])
             
